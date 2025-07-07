@@ -21,3 +21,5 @@ class Flight:
     stops: int
     delay: Optional[str]
     price: str
+    airline_code: str
+    flight_number: str

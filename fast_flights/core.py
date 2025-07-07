@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Tuple
 
 from selectolax.lexbor import LexborHTMLParser, LexborNode
 
@@ -8,9 +8,11 @@ from .filter import TFSData
 from .fallback_playwright import fallback_playwright_fetch
 from .primp import Client, Response
 
+import re
 
-def fetch(params: dict) -> Response:
-    client = Client(impersonate="chrome_126", verify=False)
+
+def fetch(params: dict, proxy: Optional[str] = None) -> Response:
+    client = Client(impersonate="chrome_126", verify=False, proxy=proxy)
     res = client.get("https://www.google.com/travel/flights", params=params)
     assert res.status_code == 200, f"{res.status_code} Result: {res.text_markdown}"
     return res
@@ -21,6 +23,7 @@ def get_flights_from_filter(
     currency: str = "",
     *,
     mode: Literal["common", "fallback", "force-fallback", "local"] = "common",
+    proxy: Optional[str] = None,
 ) -> Result:
     data = filter.as_b64()
 
@@ -33,7 +36,7 @@ def get_flights_from_filter(
 
     if mode in {"common", "fallback"}:
         try:
-            res = fetch(params)
+            res = fetch(params, proxy=proxy)
         except AssertionError as e:
             if mode == "fallback":
                 res = fallback_playwright_fetch(params)
@@ -52,7 +55,7 @@ def get_flights_from_filter(
         return parse_response(res)
     except RuntimeError as e:
         if mode == "fallback":
-            return get_flights_from_filter(filter, mode="force-fallback")
+            return get_flights_from_filter(filter, mode="force-fallback", proxy=proxy)
         raise e
 
 
@@ -91,6 +94,14 @@ def parse_response(
 
     def safe(n: Optional[LexborNode]):
         return n or blank
+    
+    def extract_airline_code_and_flight_number(s: str) -> Optional[List[Tuple[str, str]]]:
+        """Extract airline code and flight number from string"""
+        pattern = r"-([A-Z0-9]{2})-(\d{2,4})-"
+        result = re.findall(pattern, s)
+        if not result:
+            print("No airline code and flight number found in:", s)
+        return result[0][0], result[0][1]
 
     parser = LexborHTMLParser(r.text)
     flights = []
@@ -137,6 +148,12 @@ def parse_response(
             except ValueError:
                 stops_fmt = "Unknown"
 
+            try:
+                airline_code, flight_number = extract_airline_code_and_flight_number(
+                    item.css_first(".NZRfve").attributes["data-travelimpactmodelwebsiteurl"])
+            except ValueError:
+                raise RuntimeError("Can't parse airline code or flight number")
+
             flights.append(
                 {
                     "is_best": is_best_flight,
@@ -148,6 +165,8 @@ def parse_response(
                     "stops": stops_fmt,
                     "delay": delay,
                     "price": price.replace(",", ""),
+                    "airline_code": airline_code,
+                    "flight_number": flight_number,
                 }
             )
 
@@ -155,4 +174,4 @@ def parse_response(
     if not flights:
         raise RuntimeError("No flights found:\n{}".format(r.text_markdown))
 
-    return Result(current_price=current_price, flights=[Flight(**fl) for fl in flights])  # type: ignore
+    return Result(current_price=current_price, flights=[Flight(**fl) for fl in flights]) 
