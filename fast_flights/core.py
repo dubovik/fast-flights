@@ -12,10 +12,15 @@ from .primp import Client, Response
 
 logger = logging.getLogger(__name__)
 
+class FlightParsingError(RuntimeError):
+    """Raised when flight data cannot be parsed"""
+    pass
+
 
 def fetch(params: dict, proxy: Optional[str] = None) -> Response:
     client = Client(impersonate="chrome_126", verify=False, proxy=proxy)
     res = client.get("https://www.google.com/travel/flights", params=params, cookies={
+        # EU cookies to bypass the data collection form
         "CONSENT": "PENDING+987",
         "SOCS": "CAESHAgBEhJnd3NfMjAyMzA4MTAtMF9SQzIaAmRlIAEaBgiAo_CmBg"
     })
@@ -110,6 +115,11 @@ def parse_response(
         return result[0][0], result[0][1]
 
     parser = LexborHTMLParser(r.text)
+    
+    # Check for required qJTHM element - should exist even if no flights
+    if not parser.css_first('div[jsname="qJTHM"]'):
+        raise FlightParsingError("Required qJTHM element not found in response")
+    
     flights = []
 
     for i, fl in enumerate(parser.css('div[jsname="IWWDBc"], div[jsname="YdtKid"]')):
@@ -158,7 +168,7 @@ def parse_response(
                 airline_code, flight_number = extract_airline_code_and_flight_number(
                     item.css_first(".NZRfve").attributes["data-travelimpactmodelwebsiteurl"])
             except ValueError:
-                raise RuntimeError("Can't parse airline code or flight number")
+                raise FlightParsingError("Can't parse airline code or flight number")
 
             flights.append(
                 {
@@ -177,7 +187,7 @@ def parse_response(
             )
 
     current_price = safe(parser.css_first("span.gOatQ")).text()
-    if not flights:
-        raise RuntimeError("No flights found:\n{}".format(r.text_markdown))
+    #if not flights:
+    #    raise NoFlightsFoundError("No flights found:\n{}".format(r.text_markdown))
 
     return Result(current_price=current_price, flights=[Flight(**fl) for fl in flights]) 
