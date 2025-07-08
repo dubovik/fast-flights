@@ -55,7 +55,7 @@ def get_flights_from_filter(
         return parse_response(res)
     except RuntimeError as e:
         if mode == "fallback":
-            return get_flights_from_filter(filter, mode="force-fallback", proxy=proxy)
+            return get_flights_from_filter(filter, mode="local", proxy=proxy)
         raise e
 
 
