@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 def fetch(params: dict, proxy: Optional[str] = None) -> Response:
     client = Client(impersonate="chrome_126", verify=False, proxy=proxy)
     res = client.get("https://www.google.com/travel/flights", params=params)
+    logger.debug(f"Request made to: {res.url}")
     assert res.status_code == 200, f"{res.status_code} Result: {res.text_markdown}"
     return res
 
