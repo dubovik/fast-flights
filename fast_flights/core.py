@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 def fetch(params: dict, proxy: Optional[str] = None) -> Response:
     client = Client(impersonate="chrome_126", verify=False, proxy=proxy)
-    res = client.get("https://www.google.com/travel/flights", params=params)
+    res = client.get("https://www.google.com/travel/flights", params=params, cookies={
+        "CONSENT": "PENDING+987"
+    })
     assert res.status_code == 200, f"{res.status_code} Result: {res.text_markdown}"
     return res
 
