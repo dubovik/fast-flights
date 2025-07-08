@@ -1,4 +1,6 @@
 from typing import List, Literal, Optional, Tuple
+import logging
+import re
 
 from selectolax.lexbor import LexborHTMLParser, LexborNode
 
@@ -8,7 +10,7 @@ from .filter import TFSData
 from .fallback_playwright import fallback_playwright_fetch
 from .primp import Client, Response
 
-import re
+logger = logging.getLogger(__name__)
 
 
 def fetch(params: dict, proxy: Optional[str] = None) -> Response:
@@ -54,6 +56,7 @@ def get_flights_from_filter(
     try:
         return parse_response(res)
     except RuntimeError as e:
+        logger.debug(f"RuntimeError in get_flights_from_filter: {e}")
         if mode == "fallback":
             return get_flights_from_filter(filter, mode="local", proxy=proxy)
         raise e
