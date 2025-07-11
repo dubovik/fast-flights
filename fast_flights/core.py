@@ -122,7 +122,7 @@ def parse_response(
     parser = LexborHTMLParser(r.text)
     
     # Check for flight date too far in future error message
-    if "Requested flight date is too far in the future" in r.text:
+    if parser.css_first('div[jsname="qJTHM"][class="FXkZv fXx9Lc"]'):
         raise FlightDateTooFarError("Requested flight date is too far in the future")
     
     # Check for required qJTHM element - should exist even if no flights
