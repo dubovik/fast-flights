@@ -17,6 +17,11 @@ class FlightParsingError(RuntimeError):
     pass
 
 
+class FlightDateTooFarError(RuntimeError):
+    """Raised when the requested flight date is too far in the future"""
+    pass
+
+
 def fetch(params: dict, proxy: Optional[str] = None) -> Response:
     client = Client(impersonate="chrome_126", verify=False, proxy=proxy)
     res = client.get("https://www.google.com/travel/flights", params=params, cookies={
@@ -115,6 +120,10 @@ def parse_response(
         return result[0][0], result[0][1]
 
     parser = LexborHTMLParser(r.text)
+    
+    # Check for flight date too far in future error message
+    if "Requested flight date is too far in the future" in r.text:
+        raise FlightDateTooFarError("Requested flight date is too far in the future")
     
     # Check for required qJTHM element - should exist even if no flights
     if not parser.css_first('div[jsname="qJTHM"]'):
