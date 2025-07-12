@@ -47,6 +47,7 @@ def get_flights_from_filter(
         "hl": "en",
         "tfu": "EgQIABABIgA",
         "curr": currency,
+        "gl": "IL",
     }
 
     if mode in {"common", "fallback"}:
