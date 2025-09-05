@@ -22,6 +22,13 @@ class FlightDateTooFarError(RuntimeError):
     pass
 
 
+class FlightResponseError(RuntimeError):
+    """Raised when flight parsing fails with the response included for debugging"""
+    def __init__(self, message, response=None):
+        super().__init__(message)
+        self.response = response
+
+
 def fetch(params: dict, proxy: Optional[str] = None) -> Response:
     client = Client(impersonate="chrome_126", verify=False, proxy=proxy)
     res = client.get("https://www.google.com/travel/flights", params=params, cookies={
@@ -69,11 +76,12 @@ def get_flights_from_filter(
 
     try:
         return parse_response(res)
-    except RuntimeError as e:
-        logger.debug(f"RuntimeError in get_flights_from_filter: {e}")
+    except Exception as e:
+        logger.debug(f"Exception in get_flights_from_filter: {e}")
         if mode == "fallback":
             return get_flights_from_filter(filter, mode="local", proxy=proxy)
-        raise e
+        # Raise custom exception with the response included
+        raise FlightResponseError(str(e), response=res) from e
 
 
 def get_flights(
